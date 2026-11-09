@@ -4,7 +4,7 @@ on:
     - cron: '0 0 * * *'
 jobs:
   update-instances:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - uses: r-lib/actions/setup-r@v2
