@@ -2,6 +2,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * *'
+
+env:
+  ACTIONS_RUNNER_PRINT_DEPRECATION_WARNINGS: false
+  RENV_CONFIG_INSTALL_FROM_SOURCE: true
+
 jobs:
   update-instances:
     runs-on: ubuntu-24.04
@@ -11,7 +16,7 @@ jobs:
       with:
         r-version: '4.6.2'
     - name: Install dependencies
-      run: sudo apt-get install libcurl4-openssl-dev libharfbuzz-dev libfribidi-dev libudunits2-dev pandoc libfontconfig1-dev
+      run: sudo apt-get install libcurl4-openssl-dev libharfbuzz-dev libfribidi-dev libudunits2-dev pandoc libfontconfig1-dev libgit2-dev
     - name: Install GDAL
       run: |
         sudo add-apt-repository ppa:ubuntugis/ubuntugis-unstable 
@@ -21,9 +26,9 @@ jobs:
       with:
         ssh-private-key: |
           ${{ secrets.PRIVATE_REPO_KEY }}
-    - name: Configure R Geospatial Env
+    - name: Configure R Geospatial & Git Env
       run: |
-        Rscript -e 'options(pkgType = "source"); install.packages(c("terra", "sf"), type = "source")'
+        Rscript -e 'options(pkgType = "source"); install.packages(c("gert", "terra", "sf"), type = "source")'
     - name: Update portfolio
       run: Rscript update-portfolio.R
     - name: Push changes
