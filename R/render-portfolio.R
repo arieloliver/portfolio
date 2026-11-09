@@ -31,39 +31,50 @@ render_portfolio <- function(site_number = NULL,
     state <- ifelse(is.null(state),
                     sample(state.abb, 1),
                     state)
+    ansi_codes <- read.table(
+      file = "https://www2.census.gov/geo/docs/reference/state.txt",
+      sep = "|",
+      header = TRUE,
+      stringsAsFactors = FALSE,
+      strip.white = TRUE)
+    
+    state_code <- ansi_codes %>%
+      subset(STUSAB == state) %>%
+      dplyr::pull(STATE) %>%
+      stringr::str_pad(., width = 2, pad = "0")
     
     # Query sites with flow data
     flow_sites <-
-      dataRetrieval::whatNWISsites(
-        stateCd = state,
-        parameterCd = "00060",
-        startDt = start_date,
-        endDt = end_date,
-        hasDataTypeCd = "uv"
-      ) 
+      dataRetrieval::read_waterdata_combined_meta(
+        state_code = state_code,
+        parameter_code = "00060",
+        computation_identifier = "Instantaneous",
+        site_type = "Stream") %>%
+      sf::st_drop_geometry() %>%
+      dplyr::filter(as.Date(begin) <= end_date & as.Date(end) >= start_date)
     
     # Query sites with stage data
     stage_sites <-
-      dataRetrieval::whatNWISsites(
-        stateCd = state,
-        parameterCd = "00065",
-        startDt = start_date,
-        endDt = end_date,
-        hasDataTypeCd = "uv"
-      ) 
+      dataRetrieval::read_waterdata_combined_meta(
+        state_code = state_code,
+        parameter_code = "00065",
+        computation_identifier = "Instantaneous",
+        site_type = "Stream") %>%
+      sf::st_drop_geometry() %>%
+      dplyr::filter(as.Date(begin) <= end_date & as.Date(end) >= start_date)
     
     # Select random site
     # Otherwise, use user provided site number(s)
-    site <- sample(intersect(flow_sites$site_no, stage_sites$site_no), 
+    site <- sample(intersect(flow_sites$monitoring_location_id, stage_sites$monitoring_location_id), 
                    ifelse(isTRUE(shiny), 3, 1))
   } else {
     site <- site_number
   }
   
-  # Render shiny or Rmarkdown portfolio
+  # Render shiny portfolio
   if (isTRUE(shiny)) {
     rmarkdown::run(
-      file = here::here("inst", "rmd", "shiny-portfolio.rmd"),
+      file = here::here("inst", "rmd", "shiny-portfolio.Rmd"),
       render_args = list(params = list(
         site_number = site,
         start_date = start_date,

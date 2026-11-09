@@ -2,11 +2,11 @@ Package: portfolio
 Title: Data Science Portfolio
 Version: 0.0.0.9000
 Authors@R: 
-    person("Ariel", "Reed", , "apzreed@gmail.com", role = c("aut", "cre"),
+    person("Ariel", "Oliver", , "arielxoliver@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-0792-5204"))
 Description: A flashy display of my data science prowess.
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+Config/roxygen2/version: 8.1.1

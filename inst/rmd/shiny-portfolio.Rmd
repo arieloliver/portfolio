@@ -3,7 +3,7 @@ title: "Portfolio"
 params:
   site_number:
   start_date:
-  end_date: 
+  end_date:
 output: 
   flexdashboard::flex_dashboard:
     theme: lumen
@@ -16,6 +16,7 @@ runtime: shiny
 
 ```{r load-packages, include=FALSE}
 devtools::load_all()
+dev_mode <- as.logical(params$dev_mode)
 library(ggplot2)
 library(plotly)
 library(leaflet)
@@ -51,35 +52,29 @@ site <- fetch_gage_data(
 site_data <- site$data
 
 # Calculate linear rating curve
-rating_curve <-
-  calculate_linear_rating_curve(
-    site_number = params$site_number,
-    start_date = params$start_date,
-    end_date = params$end_date
-  )
+rating_curve <- calculate_linear_rating_curve(site_number = params$site_number)
 
 # Metadata
 site_metadata <- site$metadata
 
 # Weather from Open Meteo
 weather_data <- fetch_weather_data(
-    site_metadata = site_metadata,
-    start_date = params$start_date,
-    end_date = params$end_date
-  )
+  site_metadata = site_metadata,
+  start_date = params$start_date,
+  end_date = params$end_date
+)
 
 # Calculate average daily temperature and error range
 temp_data <- weather_data %>%
-    dplyr::mutate(day = lubridate::floor_date(datetime_local, "day")) %>%
-    dplyr::group_by(site_number, day) %>%
-    dplyr::summarise(
-      daily_temp_degF = mean(temp_degF, na.rm = TRUE),
-      sd = sd(temp_degF, na.rm = TRUE)
-    ) %>%
-    dplyr::ungroup() %>%
-    tidyr::drop_na() %>%
-    dplyr::mutate(upper_error = daily_temp_degF + sd,
-                  lower_error = daily_temp_degF - sd)
+  dplyr::mutate(day = lubridate::floor_date(datetime_local, "day")) %>%
+  dplyr::group_by(site_number, day) %>%
+  dplyr::summarise(
+    daily_temp_degF = mean(temp_degF, na.rm = TRUE),
+    sd = sd(temp_degF, na.rm = TRUE)
+  ) %>%
+  dplyr::ungroup() %>%
+  tidyr::drop_na() %>%
+  dplyr::mutate(upper_error = daily_temp_degF + sd, lower_error = daily_temp_degF - sd)
 ```
 
 ```{r create-reactive-data}
@@ -87,28 +82,18 @@ temp_data <- weather_data %>%
 # Subset dates to user input
 siteData <- shiny::reactive({
   site_data %>%
-    dplyr::full_join(., rating_curve,
-                     by = "site_number") %>%
+    dplyr::full_join(., rating_curve, by = "site_no") %>%
     dplyr::mutate(depth_ft = slope * gage_height_ft + int) %>%
     subset(dplyr::between(datetime_local,
                           input$DATES[1],
                           input$DATES[2]) &
-             site_number == input$SITE)
+             site_no == input$SITE)
 })
 
 # Site metadata
 siteMetadata <- shiny::reactive({ 
-  site$metadata %>%
-    subset(site_number == input$SITE)})
-
-# sf geometry for mapping
-siteCoords <- shiny::reactive({
   site_metadata %>%
-    subset(site_number == input$SITE) %>%
-    # Add sf geometry for mapping
-    sf::st_as_sf(coords = c("dec_lon_va", "dec_lat_va")) %>%
-    sf::st_set_crs(4326)
-})
+    subset(site_no == input$SITE)})
 
 # Precipitation
 # Subset dates to user input
@@ -132,10 +117,8 @@ tempData <- shiny::reactive({
 # Calculate stream water volume given user input
 waterVolume <- shiny::reactive({
   site_data %>%
-    subset(dplyr::between(datetime_local,
-                                      input$DATES[1],
-                                      input$DATES[2]) &
-             site_number == input$SITE) %>%
+    subset(dplyr::between(datetime_local, input$DATES[1], input$DATES[2]) &
+             site_no == input$SITE) %>%
   dplyr::mutate(
       interval = as.numeric(datetime_local - dplyr::lag(datetime_local), units = "secs"),
       volume_per_interval = (flow_cfs * interval) / 7.481
@@ -147,16 +130,14 @@ waterVolume <- shiny::reactive({
       f = ceiling
     )) %>%
     dplyr::ungroup() %>%
-  format(., big.mark = ",") %>%
-  dplyr::pull()
+    dplyr::pull() %>%
+  format(., big.mark = ",")
 })
 
 # Calculate rain volume given user input
 rainVolume <- shiny::reactive({
   weather_data %>%
-    subset(dplyr::between(datetime_local,
-                                      input$DATES[1],
-                                      input$DATES[2]) &
+    subset(dplyr::between(datetime_local, input$DATES[1], input$DATES[2]) &
              site_number == input$SITE) %>%
   dplyr::summarise(rain_volume = sum(precipitation_in, na.rm = TRUE)) %>%
   round(., 1) %>%
@@ -171,7 +152,7 @@ Row
 
 ```{r box-1}
 flexdashboard::renderValueBox({
-  flexdashboard::valueBox(siteMetadata()$station_nm,
+  flexdashboard::valueBox(siteMetadata()$site_name,
                         icon = "ion-ios-location",
                         color =  'white')
 })
@@ -209,13 +190,13 @@ renderLeaflet({
     leaflet::addScaleBar(position = "bottomright") %>%
     # Base maps
     addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") %>%
-    addProviderTiles(providers$CartoDB.Voyager, group = "Streets") %>%
+    addProviderTiles(providers$Esri.WorldGrayCanvas, group = "Streets") %>%
     addLayersControl(
       baseGroups = c("Streets", "Satellite"),
       options = layersControlOptions(collapsed = FALSE)
     ) %>%
     addCircleMarkers(
-      data = siteCoords()$geometry,
+      data = siteMetadata()$geometry,
       weight = 1,
       fillColor = '#00b3f4',
       fillOpacity = 0.5,
@@ -223,12 +204,12 @@ renderLeaflet({
       stroke = FALSE
     ) %>%
     addCircleMarkers(
-      data = siteCoords()$geometry,
+      data = siteMetadata()$geometry,
       fillColor = '#00b3f4',
       fillOpacity = 0.8,
       radius = 8,
       stroke = FALSE,
-      label = siteMetadata()$station_nm,
+      label = siteMetadata()$site_name,
       labelOptions = labelOptions(
         style = list("box-shadow" = "3px 3px rgba(0,0,0,0.25)",
                      "font-size" = "11px")
@@ -447,4 +428,4 @@ renderPlotly({
 
 Row {data-height=10}
 -------------------------------------
-<div class='footer-div'><span class='footer'>View source code on <a href='https://github.com/arielreed/portfolio'>Github</a></span></div>
+<div class='footer-div'><span class='footer'>View source code on <a href='https://github.com/arieloliver/portfolio'>Github</a></span></div>
