@@ -14,9 +14,8 @@ fetch_gage_data(site_number, start_date, end_date)
 \item{end_date}{End date, provide as \code{"YYYY-mm-dd"}.}
 }
 \value{
-A list of data frames. \code{site_data} is the time series flow data
-in local date time and cubic feet per second. \code{site_metadata} is the metadata
-associated with the requested gage station.
+A list of data frames. \code{site_data} is the time series flow and gage height data.
+\code{site_metadata} is the metadata associated with the requested gage station.
 }
 \description{
 Fetch flow data from USGS stream gage

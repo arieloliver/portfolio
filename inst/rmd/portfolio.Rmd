@@ -1,8 +1,8 @@
 ---
 pagetitle: "Portfolio"
 params: 
-  site_number: 
-  start_date: 
+  site_number:
+  start_date:
   end_date:
 output: 
   flexdashboard::flex_dashboard:
@@ -29,6 +29,9 @@ library(leaflet)
 ```
 
 ```{r fetch-gage-data}
+# Check that user provided USGS- prefix
+if (!all(stringr::str_starts(params$site_number, "USGS-"))) stop("Site number(s) must contain USGS- prefix")
+
 # Retrieve from NWIS
 site <- fetch_gage_data(
   site_number = params$site_number,
@@ -41,12 +44,6 @@ site_data <- site$data
 
 # Metadata
 site_metadata <- site$metadata
-
-# sf geometry for mapping
-site_coords <- site_metadata %>%
-  # Add sf geometry for mapping
-  sf::st_as_sf(coords = c("dec_lon_va", "dec_lat_va")) %>%
-  sf::st_set_crs(4326)
 ```
 
 ```{r fetch-precipitation-data}
@@ -68,33 +65,28 @@ temp_data <- weather_data %>%
 
 ```{r calculate-depth-from-stage}
 # Calculate linear rating curve
-rating_curve <-
-  calculate_linear_rating_curve(
-    site_number = params$site_number,
-    start_date = params$start_date,
-    end_date = params$end_date
-  )
+rating_curve <- calculate_linear_rating_curve(site_number = params$site_number)
 
 # Apply rating curve to gage height data
 site_data <- site_data %>%
-  dplyr::mutate(depth_ft = rating_curve$slope * gage_height_ft + rating_curve$int)
+  dplyr::left_join(., rating_curve, by = "site_no") %>%
+  dplyr::mutate(depth_ft = slope * gage_height_ft + int)
 ```
 
 ```{r caclulate-water-volume}
 water_volume <- site_data %>%
   dplyr::mutate(
-      interval = as.numeric(datetime_local - dplyr::lag(datetime_local), units = "secs"),
-      volume_per_interval = (flow_cfs * interval) / 7.481
-    ) %>%
-    # Sum all volumes at each interval to get total volume
-    dplyr::summarise(total_volume_cubic_feet = plyr::round_any(
-      x = sum(volume_per_interval, na.rm = TRUE),
-      accuracy = 100,
-      f = ceiling
-    )) %>%
-    dplyr::ungroup() %>%
-  format(., big.mark = ",") %>%
-  dplyr::pull()
+    interval = as.numeric(datetime_local - dplyr::lag(datetime_local), units = "secs"),
+    volume_per_interval = (flow_cfs * interval) / 7.481 #conversion to gallons
+  ) %>%
+  # Sum all volumes at each interval to get total volume
+  dplyr::summarise(total_volume_cubic_feet = plyr::round_any(
+    x = sum(volume_per_interval, na.rm = TRUE),
+    accuracy = 100,
+    f = ceiling
+  )) %>%
+  dplyr::pull() %>%
+  format(., big.mark = ",")
 ```
 
 ```{r rain-volume}
@@ -111,13 +103,13 @@ site_map <-
   leaflet::addScaleBar(position = "bottomright") %>%
   # Base maps
   addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") %>%
-  addProviderTiles(providers$CartoDB.Voyager, group = "Streets") %>%
+  addProviderTiles(providers$Esri.WorldGrayCanvas, group = "Streets") %>%
   addLayersControl(
     baseGroups = c("Streets", "Satellite"),
     options = layersControlOptions(collapsed = FALSE)
   ) %>%
   addCircleMarkers(
-    data = site_coords$geometry,
+    data = site_metadata$geometry,
     weight = 1,
     fillColor = '#00b3f4',
     fillOpacity = 0.5,
@@ -125,12 +117,12 @@ site_map <-
     stroke = FALSE
     ) %>%
   addCircleMarkers(
-    data = site_coords$geometry,
+    data = site_metadata$geometry,
     fillColor = '#00b3f4',
     fillOpacity = 0.8,
     radius = 8,
     stroke = FALSE,
-    label = site_metadata$station_nm,
+    label = site_metadata$site_name,
     labelOptions = labelOptions(
       style = list("box-shadow" = "3px 3px rgba(0,0,0,0.25)",
                    "font-size" = "11px")
@@ -293,7 +285,7 @@ Row
 ### current stream gage
 
 ```{r box-1}
-flexdashboard::valueBox(site_metadata$station_nm,
+flexdashboard::valueBox(site_metadata$site_name,
                         icon = "ion-ios-location",
                         color =  'white')
 ```

@@ -1,15 +1,15 @@
 # :chart_with_upwards_trend: Portfolio
 A flashy display of my data science prowess
 ## System Requirements
-   - [R 4.2.2](https://cran.r-project.org/bin/windows/base/old/)
+   - [R 4.6.2](https://cran.r-project.org/bin/windows/base/old/)
    - [RStudio](https://posit.co/download/rstudio-desktop/)
    - [GDAL 3.7.0](https://gdal.org/download.html) (Leaflet dependency)
-   - [Rtools 4.4](https://cran.r-project.org/bin/windows/Rtools/) (Windows only)
+   - [Rtools 4.5](https://cran.r-project.org/bin/windows/Rtools/) (Windows only)
    
 ## R Environment
-1. Clone this repository `https://github.com/arielreed/portfolio.git`
+1. Clone this repository `https://github.com/arieloliver/portfolio.git`
 2. Open the RStudio project `portfolio.RProj`
-3. First time users need to acivate the project by running `renv::activate()`
+3. First time users need to activate the project by running `renv::activate()`
 4. Run `renv::restore()` to download all dependencies
 5. Load the portfolio package by running `devtools::load_all()` in the R console
 
@@ -35,8 +35,8 @@ render_portfolio()
 # Renders an Rmarkdown portfolio using a random USGS stream gage located in Colorado, USA and displays the past 1 month of data.
 render_portfolio(state = "CO")
 
-# Renders an Rmarkdwon portfolio for stream gage 04213000 and displays all data from 2022.
-render_portfolio(site_number = "04213000", start_date = "2022-01-01", end_date = "2022-12-31")
+# Renders an Rmarkdwon portfolio for stream gage 06752260 and displays all data from 2022.
+render_portfolio(site_number = "USGS-06752260", start_date = "2022-01-01", end_date = "2022-12-31")
 
 # Renders an R Shiny portfolio using three random stream gages in Colorado.
 render_portfolio(state = "CO", shiny = TRUE)

@@ -4,14 +4,10 @@
 \alias{calculate_linear_rating_curve}
 \title{Calculate Linear Rating Curve}
 \usage{
-calculate_linear_rating_curve(site_number, start_date, end_date)
+calculate_linear_rating_curve(site_number)
 }
 \arguments{
 \item{site_number}{USGS stream gage site number.}
-
-\item{start_date}{Start date, provide as \code{"YYYY-mm-dd"}.}
-
-\item{end_date}{End date, provide as \code{"YYYY-mm-dd"}.}
 }
 \value{
 Data frame with slope and intercept for each site number provided.
